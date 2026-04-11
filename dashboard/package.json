@@ -1,0 +1,10 @@
+{
+  "name": "sentinel-dashboard",
+  "version": "1.0.0",
+  "description": "Sentinel Anticheat monitoring dashboard",
+  "private": true,
+  "scripts": {
+    "dev": "npx serve -l 3000",
+    "start": "npx serve -l 3000"
+  }
+}

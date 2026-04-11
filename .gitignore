@@ -1,0 +1,57 @@
+# Build output
+build/
+out/
+x64/
+x86/
+Debug/
+Release/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.sln.docstates
+
+# Compiled objects and binaries
+*.obj
+*.o
+*.exe
+*.sys
+*.dll
+*.lib
+*.pdb
+*.exp
+*.ilk
+*.log
+
+# Windows driver artifacts
+*.cer
+*.cat
+*.inf.bak
+
+# Node / Dashboard
+node_modules/
+dashboard/dist/
+.env
+.env.local
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+
+# Project-local AI config
+CLAUDE.md
