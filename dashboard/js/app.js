@@ -144,7 +144,7 @@ const App = (() => {
     setTimeout(() => {
       el.classList.add('toast--out');
       el.addEventListener('animationend', () => el.remove());
-    }, 5000);
+    }, 3000);
   }
 
   /* ------------------------------------------------------------------ */
@@ -300,15 +300,23 @@ const App = (() => {
     var items = data.items || [];
     var el = document.getElementById('view-alerts');
 
-    // Track for toast notifications
+    // Track for toast notifications — only toast when viewing a different view
+    var newAlerts = [];
     items.forEach(function(a) {
       if (!knownAlertIds.has(a.id)) {
-        if (knownAlertIds.size > 0) {
-          showToast('New Alert', a.message, a.severity);
+        if (knownAlertIds.size > 0 && currentView !== 'alerts') {
+          newAlerts.push(a);
         }
         knownAlertIds.add(a.id);
       }
     });
+    if (newAlerts.length > 3) {
+      showToast('New Alerts', newAlerts.length + ' new alerts detected', newAlerts[0].severity);
+    } else {
+      newAlerts.forEach(function(a) {
+        showToast('New Alert', a.message, a.severity);
+      });
+    }
 
     var rows = items.map(function(a) {
       var evidenceStr = JSON.stringify(a.evidence || {}, null, 2);
