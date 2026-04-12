@@ -80,11 +80,14 @@ func (s *SQLiteStore) InsertBatch(ctx context.Context, events []wire.Event, rece
 	defer stmt.Close()
 
 	receivedStr := receivedAt.UTC().Format(time.RFC3339Nano)
+	// Count is accumulated locally and only returned on a successful commit.
+	// On any error, we return 0 so callers can't misinterpret a partial count
+	// that the deferred Rollback just discarded.
 	inserted := 0
 	for _, e := range events {
 		raw, err := json.Marshal(e)
 		if err != nil {
-			return inserted, fmt.Errorf("marshal event %s: %w", e.EventID, err)
+			return 0, fmt.Errorf("marshal event %s: %w", e.EventID, err)
 		}
 		res, err := stmt.ExecContext(ctx,
 			e.EventID, e.ClientID, receivedStr, e.Timestamp,
@@ -92,9 +95,12 @@ func (s *SQLiteStore) InsertBatch(ctx context.Context, events []wire.Event, rece
 			string(raw),
 		)
 		if err != nil {
-			return inserted, fmt.Errorf("insert event %s: %w", e.EventID, err)
+			return 0, fmt.Errorf("insert event %s: %w", e.EventID, err)
 		}
-		n, _ := res.RowsAffected()
+		n, err := res.RowsAffected()
+		if err != nil {
+			return 0, fmt.Errorf("rows affected event %s: %w", e.EventID, err)
+		}
 		inserted += int(n)
 	}
 
