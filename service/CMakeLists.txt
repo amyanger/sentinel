@@ -26,6 +26,7 @@ set(SERVICE_SOURCES
     src/collector_wire.cpp
     src/collector_client.cpp
     src/collector_http_win.cpp
+    src/credential_store_win.cpp
 )
 
 # Build as a standard Windows executable.
