@@ -4,6 +4,7 @@
 
 # Go coverage
 *.out
+cover.html
 
 # SQLite dev databases
 *.db
