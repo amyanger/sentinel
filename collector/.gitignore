@@ -1,0 +1,11 @@
+# Build output
+/collector
+/cmd/collector/collector
+
+# Go coverage
+*.out
+
+# SQLite dev databases
+*.db
+*.db-shm
+*.db-wal
