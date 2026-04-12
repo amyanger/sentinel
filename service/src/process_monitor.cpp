@@ -34,6 +34,12 @@ ProcessMonitor::ProcessMonitor()
     , scan_interval_ms_(DEFAULT_SCAN_INTERVAL_MS) {
     init_databases();
     load_cheat_database(CHEAT_NAMES_DB_PATH);
+
+#ifdef _WIN32
+    /* Resolve SeDebugPrivilege LUID once — it's constant per boot session. */
+    debug_privilege_luid_valid_ = LookupPrivilegeValueA(
+        nullptr, "SeDebugPrivilege", &debug_privilege_luid_) != 0;
+#endif
 }
 
 ProcessMonitor::~ProcessMonitor() {
@@ -391,8 +397,9 @@ void ProcessMonitor::init_databases() {
         "screamer_util.exe",
         "leechcore.exe",
         "fpga_flash.exe",
-        "vivado.exe",
-        "impact.exe",
+        /* Note: vivado.exe and impact.exe intentionally excluded --
+         * they are legitimate Xilinx/AMD FPGA development tools that
+         * would cause false positives on developer workstations. */
         /* Additional injectors */
         "xenos.exe",
         "dll_injector.exe",
@@ -563,9 +570,8 @@ std::vector<DetectionEvent> ProcessMonitor::check_process_privileges(
         return detections;
     }
 
-    LUID luid;
-    if (!LookupPrivilegeValueA(nullptr, "SeDebugPrivilege", &luid)) {
-        /* Privilege name lookup failed -- shouldn't happen on any modern Windows. */
+    /* Use the cached LUID resolved in the constructor. */
+    if (!debug_privilege_luid_valid_) {
         CloseHandle(token);
         CloseHandle(process);
         return detections;
@@ -584,7 +590,7 @@ std::vector<DetectionEvent> ProcessMonitor::check_process_privileges(
     PRIVILEGE_SET priv_set;
     priv_set.PrivilegeCount = 1;
     priv_set.Control        = PRIVILEGE_SET_ALL_NECESSARY;
-    priv_set.Privilege[0].Luid       = luid;
+    priv_set.Privilege[0].Luid       = debug_privilege_luid_;
     priv_set.Privilege[0].Attributes = SE_PRIVILEGE_ENABLED;
 
     BOOL has_priv = FALSE;

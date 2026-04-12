@@ -141,6 +141,12 @@ private:
      */
     std::vector<DetectionEvent> check_process_privileges(
         DWORD pid, const std::string& process_name);
+
+#ifdef _WIN32
+    /** Cached LUID for SeDebugPrivilege, resolved once in constructor. */
+    LUID debug_privilege_luid_;
+    bool debug_privilege_luid_valid_ = false;
+#endif
 };
 
 } /* namespace sentinel */
