@@ -33,6 +33,7 @@ ProcessMonitor::ProcessMonitor()
     : running_(false)
     , scan_interval_ms_(DEFAULT_SCAN_INTERVAL_MS) {
     init_databases();
+    load_cheat_database(CHEAT_NAMES_DB_PATH);
 }
 
 ProcessMonitor::~ProcessMonitor() {
@@ -95,6 +96,11 @@ std::vector<DetectionEvent> ProcessMonitor::scan_once() {
         auto dll_detections = check_injected_dlls(proc.pid, proc.name);
         detections.insert(detections.end(),
                           dll_detections.begin(), dll_detections.end());
+
+        /* Step 3b: Check for suspicious privileges. */
+        auto priv_detections = check_process_privileges(proc.pid, proc.name);
+        detections.insert(detections.end(),
+                          priv_detections.begin(), priv_detections.end());
     }
 
     /* Step 4: Check for suspicious parent-child relationships. */
@@ -377,6 +383,22 @@ void ProcessMonitor::init_databases() {
         "injector.exe",
         "extremeinjector.exe",
         "winject.exe",
+        /* DMA/FPGA tools */
+        "pcileech.exe",
+        "dmacapture.exe",
+        "rawudp.exe",
+        "artix_flash.exe",
+        "screamer_util.exe",
+        "leechcore.exe",
+        "fpga_flash.exe",
+        "vivado.exe",
+        "impact.exe",
+        /* Additional injectors */
+        "xenos.exe",
+        "dll_injector.exe",
+        /* Additional memory editors */
+        "tsearch.exe",
+        "memoryeditor.exe",
     };
 
     for (const char* name : cheat_tools) {
@@ -423,6 +445,170 @@ void ProcessMonitor::init_databases() {
     for (const char* name : system_dlls) {
         known_good_dll_hashes_.insert(hash_name(name));
     }
+}
+
+/* -------------------------------------------------------------------
+ * load_cheat_database -- Load additional cheat tool names from a
+ * file-based database and merge them into the known_cheat_hashes_ set.
+ *
+ * File format (INI-like):
+ *   [process_name.exe]
+ *   confidence=0.9       <- optional, currently unused but parsed
+ *
+ *   [another_tool.exe]
+ *
+ * Lines starting with '#' or ';' are treated as comments and skipped.
+ * Section names are lowercased before hashing so lookups remain
+ * case-insensitive, consistent with how we normalize process names
+ * in scan_once().
+ *
+ * A missing file is not an error -- the service functions correctly
+ * with only the hardcoded database.
+ * ------------------------------------------------------------------- */
+
+void ProcessMonitor::load_cheat_database(const std::string& db_path) {
+    std::ifstream file(db_path);
+    if (!file.is_open()) {
+        /* File absence is expected in fresh installs -- not an error. */
+        std::fprintf(stderr,
+            "[sentinel] cheat name database not found at %s, "
+            "using hardcoded set only\n",
+            db_path.c_str());
+        return;
+    }
+
+    int loaded = 0;
+    std::string line;
+
+    while (std::getline(file, line)) {
+        /* Strip leading/trailing whitespace. */
+        auto start = line.find_first_not_of(" \t\r\n");
+        if (start == std::string::npos) continue;
+        line = line.substr(start);
+        auto end = line.find_last_not_of(" \t\r\n");
+        if (end != std::string::npos) line = line.substr(0, end + 1);
+
+        /* Skip blank lines and comments. */
+        if (line.empty() || line[0] == '#' || line[0] == ';') continue;
+
+        /* Parse section headers: [process_name.exe] */
+        if (line.front() == '[' && line.back() == ']') {
+            std::string name = line.substr(1, line.size() - 2);
+
+            /* Trim whitespace inside the brackets. */
+            auto ns = name.find_first_not_of(" \t");
+            auto ne = name.find_last_not_of(" \t");
+            if (ns == std::string::npos) continue;
+            name = name.substr(ns, ne - ns + 1);
+
+            if (name.empty()) continue;
+
+            /* Lowercase for consistent hashing (matches scan_once logic). */
+            std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+
+            known_cheat_hashes_.insert(hash_name(name));
+            ++loaded;
+            continue;
+        }
+
+        /* Key=value lines (e.g. confidence=0.9) -- parsed but not yet used. */
+        /* Intentionally ignored -- reserved for future confidence weighting. */
+    }
+
+    std::fprintf(stderr,
+        "[sentinel] loaded %d cheat name(s) from %s\n",
+        loaded, db_path.c_str());
+}
+
+/* -------------------------------------------------------------------
+ * check_process_privileges -- Detect processes holding SeDebugPrivilege.
+ *
+ * SeDebugPrivilege allows a process to open any other process with full
+ * access, bypassing normal DACL checks. Legitimate software rarely
+ * needs this at runtime; it's a strong indicator of a cheat tool or
+ * debugger.
+ *
+ * Detection flow:
+ *   1. Open the target process with PROCESS_QUERY_INFORMATION.
+ *   2. Open its primary token with TOKEN_QUERY.
+ *   3. Resolve the LUID for "SeDebugPrivilege".
+ *   4. Use PrivilegeCheck to test whether the privilege is *enabled*
+ *      (not just present -- many elevated processes hold it disabled).
+ *   5. If enabled, emit a MEDIUM severity event.
+ *
+ * All Windows API calls are guarded by #ifdef _WIN32 so the translation
+ * unit compiles cleanly on macOS during development.
+ * ------------------------------------------------------------------- */
+
+std::vector<DetectionEvent> ProcessMonitor::check_process_privileges(
+    DWORD pid, const std::string& process_name) {
+    std::vector<DetectionEvent> detections;
+
+#ifdef _WIN32
+    /* Skip our own process -- we legitimately hold elevated privileges. */
+    if (pid == GetCurrentProcessId()) return detections;
+
+    /* Skip kernel pseudo-processes (System Idle Process = 0, System = 4). */
+    if (pid <= 4) return detections;
+
+    HANDLE process = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pid);
+    if (process == nullptr) {
+        /* Access denied or process has exited -- not an error. */
+        return detections;
+    }
+
+    HANDLE token = nullptr;
+    if (!OpenProcessToken(process, TOKEN_QUERY, &token)) {
+        CloseHandle(process);
+        return detections;
+    }
+
+    LUID luid;
+    if (!LookupPrivilegeValueA(nullptr, "SeDebugPrivilege", &luid)) {
+        /* Privilege name lookup failed -- shouldn't happen on any modern Windows. */
+        CloseHandle(token);
+        CloseHandle(process);
+        return detections;
+    }
+
+    /*
+     * PRIVILEGE_SET layout:
+     *   PrivilegeCount  -- number of privileges in the array
+     *   Control         -- PRIVILEGE_SET_ALL_NECESSARY means ALL must be held;
+     *                      with a single privilege this doesn't matter.
+     *   Privilege[0]    -- the LUID_AND_ATTRIBUTES we want to check
+     *
+     * We set SE_PRIVILEGE_ENABLED in Attributes so PrivilegeCheck tests
+     * whether the privilege is currently *enabled*, not just present.
+     */
+    PRIVILEGE_SET priv_set;
+    priv_set.PrivilegeCount = 1;
+    priv_set.Control        = PRIVILEGE_SET_ALL_NECESSARY;
+    priv_set.Privilege[0].Luid       = luid;
+    priv_set.Privilege[0].Attributes = SE_PRIVILEGE_ENABLED;
+
+    BOOL has_priv = FALSE;
+    if (PrivilegeCheck(token, &priv_set, &has_priv) && has_priv) {
+        DetectionEvent event;
+        event.source      = AlertSource::PROCESS_MONITOR;
+        event.severity    = SENTINEL_SEVERITY_MEDIUM;
+        event.description = "Process holds SeDebugPrivilege (enabled): " +
+                            process_name +
+                            " (PID " + std::to_string(pid) + ")";
+        event.process_id  = pid;
+        event.confidence  = 0.6;
+        event.timestamp   = std::chrono::system_clock::now();
+        detections.push_back(std::move(event));
+    }
+
+    CloseHandle(token);
+    CloseHandle(process);
+#else
+    (void)pid;
+    (void)process_name;
+#endif
+
+    return detections;
 }
 
 } /* namespace sentinel */

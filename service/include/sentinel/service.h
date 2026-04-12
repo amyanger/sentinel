@@ -87,6 +87,9 @@ constexpr const char* SIGNATURE_DB_PATH = "C:\\ProgramData\\Sentinel\\signatures
 /* Known-good hash database path. */
 constexpr const char* HASH_DB_PATH = "C:\\ProgramData\\Sentinel\\hashes.db";
 
+/* Cheat name database path. */
+constexpr const char* CHEAT_NAMES_DB_PATH = "C:\\ProgramData\\Sentinel\\cheatnames.db";
+
 /* -------------------------------------------------------------------
  * Forward declarations for all service modules.
  * Each module is a self-contained class with start/stop lifecycle.

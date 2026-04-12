@@ -129,6 +129,18 @@ private:
 
     /** Initialize the known cheat tool and DLL hash databases. */
     void init_databases();
+
+    /**
+     * Load additional cheat tool names from a file-based database.
+     * Merges with the hardcoded set.
+     */
+    void load_cheat_database(const std::string& db_path);
+
+    /**
+     * Check a process for suspicious privileges (SE_DEBUG_NAME).
+     */
+    std::vector<DetectionEvent> check_process_privileges(
+        DWORD pid, const std::string& process_name);
 };
 
 } /* namespace sentinel */
