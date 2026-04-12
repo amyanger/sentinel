@@ -10,6 +10,7 @@
  */
 
 #include <sentinel/collector_client.h>
+#include <sentinel/collector_http.h>
 
 #include <cstdio>
 
@@ -119,11 +120,46 @@ void CollectorClient::worker_loop() {
     }
 }
 
-/* Placeholder -- Task 15 replaces this with a real WinHTTP POST. */
 bool CollectorClient::send_batch(const std::vector<DetectionEvent>& events) {
-    std::fprintf(stderr, "collector_client: stub send_batch, %zu events\n",
-                 events.size());
-    return true;
+    if (events.empty()) return true;
+
+    /* Serialize each event, then wrap in a batch. */
+    std::vector<std::string> jsons;
+    jsons.reserve(events.size());
+    for (const auto& e : events) {
+        jsons.push_back(serialize_event_json(e, config_.client_id, host_, version_));
+    }
+    std::string body = serialize_batch(jsons);
+
+    int http_status = 0;
+    SendResult result = http_post_events(config_.url, config_.api_key, body, http_status);
+
+    switch (result) {
+        case SendResult::Accepted:
+            return true;
+        case SendResult::PermanentDrop:
+            std::fprintf(stderr,
+                "collector_client: permanent drop, status=%d, batch=%zu\n",
+                http_status, events.size());
+            {
+                std::lock_guard<std::mutex> sl(stats_mutex_);
+                stats_.permanent_failures++;
+            }
+            return true; /* "true" here means "do not retry" */
+        case SendResult::CertError:
+            std::fprintf(stderr,
+                "collector_client: TLS cert verification failed, failing closed\n");
+            {
+                std::lock_guard<std::mutex> sl(stats_mutex_);
+                stats_.permanent_failures++;
+            }
+            return true;
+        case SendResult::RetryLater:
+        default:
+            std::fprintf(stderr,
+                "collector_client: retry later, status=%d\n", http_status);
+            return false; /* Task 16 will re-enqueue on false */
+    }
 }
 
 } /* namespace sentinel */

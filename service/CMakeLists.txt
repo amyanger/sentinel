@@ -25,6 +25,7 @@ set(SERVICE_SOURCES
     src/api_server.cpp
     src/collector_wire.cpp
     src/collector_client.cpp
+    src/collector_http_win.cpp
 )
 
 # Build as a standard Windows executable.
@@ -51,6 +52,7 @@ if(WIN32)
         advapi32
         psapi
         bcrypt
+        winhttp
     )
 endif()
 
