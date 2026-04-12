@@ -122,8 +122,3 @@ func handleHealthz(w http.ResponseWriter, _ *http.Request) {
 		"version": version,
 	})
 }
-
-// runAdmin is defined in admin.go (next task).
-func runAdmin(args []string) error {
-	return errors.New("admin not yet implemented")
-}
