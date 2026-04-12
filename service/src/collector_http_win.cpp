@@ -14,12 +14,23 @@
 
 #include <sentinel/collector_http.h>
 
+/*
+ * Windows system headers must be included at file scope (not inside
+ * namespace sentinel) and <windows.h> must come before <winhttp.h>.
+ * MSVC will refuse to compile this otherwise; macOS clang is silently
+ * permissive of the old in-namespace layout, which is why this bug
+ * hid during earlier syntax checks.
+ */
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <winhttp.h>
+#pragma comment(lib, "winhttp.lib")
+#endif
+
 namespace sentinel {
 
 #ifdef _WIN32
-
-#include <winhttp.h>
-#pragma comment(lib, "winhttp.lib")
 
 static std::wstring to_wstring(const std::string& s) {
     if (s.empty()) return std::wstring();
