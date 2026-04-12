@@ -40,18 +40,52 @@ SignatureScanner::~SignatureScanner() {
 bool SignatureScanner::start(const std::string& db_path,
                               DetectionCallback callback) {
     callback_ = std::move(callback);
-    auto sigs = load_database(db_path);
 
-    if (sigs.empty()) {
-        /* No signatures loaded -- not necessarily an error (empty db). */
-        std::fprintf(stderr,
-            "[SignatureScanner] Warning: No signatures loaded from %s\n",
-            db_path.c_str());
+    /* Step 1: Load hardcoded defaults — always available. */
+    auto defaults = get_default_signatures();
+
+    /* Step 2: Load file-based signatures (may be empty if file missing). */
+    auto file_sigs = load_database(db_path);
+
+    /*
+     * Step 3: Merge — file signatures override defaults by name.
+     *
+     * Algorithm:
+     *   a) Build a set of names present in file_sigs.
+     *   b) Keep every default whose name is NOT in the file set.
+     *   c) Append all file_sigs (they take priority for any shared names).
+     */
+    std::vector<Signature> merged;
+    merged.reserve(defaults.size() + file_sigs.size());
+
+    /* Build name lookup for file signatures. */
+    std::unordered_set<std::string> file_names;
+    file_names.reserve(file_sigs.size());
+    for (const auto& s : file_sigs) {
+        file_names.insert(s.name);
     }
 
+    /* Keep defaults not overridden by a file signature. */
+    for (auto& s : defaults) {
+        if (file_names.find(s.name) == file_names.end()) {
+            merged.push_back(std::move(s));
+        }
+    }
+
+    /* Append all file signatures. */
+    for (auto& s : file_sigs) {
+        merged.push_back(std::move(s));
+    }
+
+    std::fprintf(stderr,
+        "[SignatureScanner] Loaded %zu default + %zu file signatures"
+        " = %zu total\n",
+        defaults.size(), file_sigs.size(), merged.size());
+
+    /* Step 4: Store merged result. */
     {
         std::lock_guard<std::mutex> lock(signatures_mutex_);
-        signatures_ = std::move(sigs);
+        signatures_ = std::move(merged);
     }
 
     active_ = true;
@@ -283,6 +317,168 @@ bool SignatureScanner::parse_pattern(const std::string& pattern_str,
     }
 
     return !out_bytes.empty();
+}
+
+/* -------------------------------------------------------------------
+ * get_default_signatures -- Hardcoded signatures for known cheat tools.
+ *
+ * These ship with the binary so detection works out of the box, even
+ * when no signature database file is present on disk.  File-based
+ * signatures can override any of these by matching name.
+ * ------------------------------------------------------------------- */
+
+std::vector<SignatureScanner::Signature>
+SignatureScanner::get_default_signatures() {
+    std::vector<Signature> defaults;
+
+    /* Helper lambda: build a Signature from a hex pattern string. */
+    auto make_sig = [](const char* name,
+                       const char* description,
+                       double confidence,
+                       const char* pattern_str) -> Signature {
+        Signature sig;
+        sig.name        = name;
+        sig.description = description;
+        sig.confidence  = confidence;
+        parse_pattern(pattern_str, sig.pattern, sig.mask);
+        return sig;
+    };
+
+    /*
+     * 1. pcileech firmware ASCII marker.
+     *    The string "pcileech" appears verbatim in pcileech firmware images
+     *    and in DMA-backed cheat payloads that embed the firmware blob.
+     */
+    defaults.push_back(make_sig(
+        "pcileech_firmware_marker",
+        "pcileech firmware ASCII marker found in process memory",
+        0.85,
+        "70 63 69 6C 65 65 63 68"   /* "pcileech" */
+    ));
+
+    /*
+     * 2. pcileech DMA_READ command word (0x00000001) followed by a
+     *    64-bit address field, as seen in pcileech command descriptors
+     *    submitted through bar1/bar2 MMIO regions.
+     */
+    defaults.push_back(make_sig(
+        "pcileech_dma_read_cmd",
+        "pcileech DMA_READ command descriptor pattern",
+        0.80,
+        "01 00 00 00 00 00 00 00 ?? ?? ?? ?? ?? ?? ?? ??"
+    ));
+
+    /*
+     * 3. Xilinx Artix-7 FPGA bitstream sync word (0xAA995566) followed by
+     *    the TYPE1 NOP header (0x20000000).  Screamer and similar FPGA DMA
+     *    boards begin their bitstreams with this sequence.
+     */
+    defaults.push_back(make_sig(
+        "screamer_fpga_bitstream_sync",
+        "Xilinx Artix-7 FPGA bitstream sync word (Screamer hardware)",
+        0.90,
+        "AA 99 55 66 20 00 00 00"
+    ));
+
+    /*
+     * 4. DMA scatter-gather list construction pattern.
+     *    The byte sequence encodes a 64-bit base address load into a
+     *    scatter-gather descriptor, a common pattern in DMA engine setup
+     *    code injected by hardware-assisted cheats.
+     *    Pattern: MOV [rax], rcx ; MOV [rax+8], rdx ; RET
+     */
+    defaults.push_back(make_sig(
+        "dma_scatter_gather_construct",
+        "DMA scatter-gather list construction in process memory",
+        0.70,
+        "48 89 08 48 89 50 08 C3"
+    ));
+
+    /*
+     * 5. CheatEngine speed hack QPC hook.
+     *    CheatEngine patches QueryPerformanceCounter to return a scaled
+     *    value for speed hacking.  The prolog of the hooked function
+     *    begins with a PUSH RBP / MOV RBP,RSP prologue immediately
+     *    followed by a MOV RAX, <imm64> trampoline jump.
+     *    Pattern: PUSH RBP ; MOV RBP,RSP ; MOV RAX,imm64
+     */
+    defaults.push_back(make_sig(
+        "cheatengine_qpc_hook",
+        "CheatEngine QueryPerformanceCounter speed hack hook",
+        0.75,
+        "55 48 89 E5 48 B8 ?? ?? ?? ?? ?? ?? ?? ??"
+    ));
+
+    /*
+     * 6. IAT hook trampoline.
+     *    A classic Import Address Table hook overwrites a function pointer
+     *    with a JMP to a trampoline stub.  The stub pattern is:
+     *    FF 25 00 00 00 00 (JMP QWORD PTR [RIP+0]) followed by the
+     *    absolute target address.
+     */
+    defaults.push_back(make_sig(
+        "iat_hook_trampoline",
+        "IAT hook trampoline (FF25 absolute indirect JMP)",
+        0.65,
+        "FF 25 00 00 00 00 ?? ?? ?? ?? ?? ?? ?? ??"
+    ));
+
+    /*
+     * 7. Inline hook JMP + NOP sled.
+     *    Many cheats patch the first bytes of a target function with a
+     *    relative JMP (E9) followed by NOPs (90) to align the patch.
+     *    Pattern: JMP rel32 ; NOP ; NOP ; NOP
+     */
+    defaults.push_back(make_sig(
+        "inline_hook_jmp_nop_sled",
+        "Inline function hook: JMP followed by NOP sled",
+        0.60,
+        "E9 ?? ?? ?? ?? 90 90 90"
+    ));
+
+    /*
+     * 8. rawudp DMA exfiltration marker.
+     *    The rawudp DMA tool embeds the ASCII tag "RDMA" in its payload
+     *    headers when exfiltrating memory contents over the network.
+     */
+    defaults.push_back(make_sig(
+        "rawudp_dma_exfil_marker",
+        "rawudp DMA exfiltration payload header marker",
+        0.80,
+        "52 44 4D 41"   /* "RDMA" */
+    ));
+
+    /*
+     * 9. VirtualProtect PAGE_EXECUTE_READWRITE setup.
+     *    Cheats that perform manual mapping call VirtualProtect to mark
+     *    the injected region executable.  The Win32 constant for
+     *    PAGE_EXECUTE_READWRITE is 0x40; this pattern captures the common
+     *    MOV EDX, 0x40 ; CALL sequence used before the VirtualProtect call.
+     *    Pattern: MOV EDX,0x40 ; XOR R9D,R9D ; CALL rel32
+     */
+    defaults.push_back(make_sig(
+        "virtualprotect_exec_rw_setup",
+        "VirtualProtect PAGE_EXECUTE_READWRITE setup before manual map",
+        0.70,
+        "BA 40 00 00 00 45 33 C9 E8 ?? ?? ?? ??"
+    ));
+
+    /*
+     * 10. Manual-map PE header parse pattern.
+     *     Manual mappers walk the PE optional header to resolve imports.
+     *     The sequence loads the DataDirectory RVA (at offset 0x78 in the
+     *     optional header) with a chain of MOV/MOVZX instructions that is
+     *     characteristic of PE parsing stubs.
+     *     Pattern: MOV EAX,[rcx+0x3C] ; MOVZX ECX,WORD PTR [rcx+rax+0x18]
+     */
+    defaults.push_back(make_sig(
+        "manual_map_pe_header_parse",
+        "Manual mapper PE optional-header parsing stub",
+        0.65,
+        "8B 41 3C 0F B7 4C 01 18"
+    ));
+
+    return defaults;
 }
 
 /* -------------------------------------------------------------------

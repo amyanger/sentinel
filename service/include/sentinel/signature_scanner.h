@@ -134,6 +134,12 @@ private:
     static ptrdiff_t find_pattern(const uint8_t* data, size_t data_size,
                                   const Signature& sig);
 
+    /**
+     * Return hardcoded default signatures for known DMA cheat patterns.
+     * These are always available even if no database file exists.
+     */
+    static std::vector<Signature> get_default_signatures();
+
     /* --- State --- */
     std::vector<Signature> signatures_;
     mutable std::mutex     signatures_mutex_;
