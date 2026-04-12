@@ -23,6 +23,8 @@
 #include <sentinel/module_integrity.h>
 #include <sentinel/detection_engine.h>
 #include <sentinel/api_server.h>
+#include <sentinel/collector_client.h>
+#include <sentinel/credential_store.h>
 
 /* The service name as registered with the SCM. */
 static constexpr const char* SERVICE_NAME = "SentinelAnticheat";
@@ -46,6 +48,7 @@ static std::unique_ptr<sentinel::SignatureScanner>  g_signature_scanner;
 static std::unique_ptr<sentinel::ModuleIntegrity>   g_module_integrity;
 static std::unique_ptr<sentinel::DetectionEngine>   g_detection_engine;
 static std::unique_ptr<sentinel::ApiServer>         g_api_server;
+static std::unique_ptr<sentinel::CollectorClient>   g_collector_client;
 
 /* Shared configuration, mutable via the REST API. */
 static sentinel::ServiceConfig g_config;
@@ -137,6 +140,49 @@ static bool initialize_modules() {
     /* 1. Driver communication -- our link to ring 0. */
     g_driver_comm = std::make_unique<sentinel::DriverComm>();
 
+    /* 1.5 Collector client -- forwards detections to a central collector.
+     * Disabled unless SENTINEL_COLLECTOR_URL and SENTINEL_CLIENT_ID are set
+     * in the environment and a valid API key is present in the Windows
+     * credential store under the target "SentinelCollectorApiKey". */
+    {
+        sentinel::CollectorConfig cc;
+        const char* url_env       = std::getenv("SENTINEL_COLLECTOR_URL");
+        const char* client_id_env = std::getenv("SENTINEL_CLIENT_ID");
+        cc.url       = url_env       ? url_env       : "";
+        cc.client_id = client_id_env ? client_id_env : "";
+        cc.enabled   = !cc.url.empty() && !cc.client_id.empty();
+
+        if (cc.enabled) {
+            if (!sentinel::load_credential(
+                    sentinel::COLLECTOR_CREDENTIAL_TARGET, cc.api_key)) {
+                log_to_stderr("collector: credential not found in store; "
+                              "forwarding disabled");
+                cc.enabled = false;
+            }
+        }
+
+        sentinel::CollectorHostInfo host;
+#ifdef _WIN32
+        {
+            char hostbuf[256] = {};
+            DWORD n = sizeof(hostbuf);
+            if (GetComputerNameA(hostbuf, &n)) host.hostname = hostbuf;
+        }
+        host.os_version = "Windows";
+        host.arch       = "x64";
+#else
+        host.hostname   = "sentinel-dev";
+        host.os_version = "Windows (stubbed)";
+        host.arch       = "x64";
+#endif
+
+        g_collector_client = std::make_unique<sentinel::CollectorClient>();
+        g_collector_client->start(cc, host, "0.3.1");
+        if (cc.enabled) {
+            log_to_stderr("Collector client started.");
+        }
+    }
+
     /* 2. Detection engine -- receives events from all sources. */
     g_detection_engine = std::make_unique<sentinel::DetectionEngine>();
     g_detection_engine->start(g_config,
@@ -149,6 +195,11 @@ static bool initialize_modules() {
             std::string msg = "ALERT TRIGGERED: " + event.description +
                               " (score=" + std::to_string(score) + ")";
             log_to_stderr(msg.c_str());
+            /* Forward to the central collector (non-blocking, drops silently
+             * if the collector client isn't enabled). */
+            if (g_collector_client) {
+                g_collector_client->enqueue(event);
+            }
         });
 
     /* 3. Start the driver communication with alert forwarding. */
@@ -244,6 +295,7 @@ static void shutdown_modules() {
     if (g_process_monitor)    g_process_monitor->stop();
     if (g_driver_comm)        g_driver_comm->stop();
     if (g_detection_engine)   g_detection_engine->stop();
+    if (g_collector_client)   g_collector_client->stop();
 
     /* Release all module objects. */
     g_api_server.reset();
@@ -252,6 +304,7 @@ static void shutdown_modules() {
     g_process_monitor.reset();
     g_driver_comm.reset();
     g_detection_engine.reset();
+    g_collector_client.reset();
 
     log_to_stderr("All modules stopped.");
 }
