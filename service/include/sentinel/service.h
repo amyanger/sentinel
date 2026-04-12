@@ -62,6 +62,7 @@ struct SERVICE_STATUS { DWORD dwCurrentState; };
 /* --- Shared contract headers ----------------------------------------- */
 #include <sentinel/ioctl_codes.h>
 #include <sentinel/shared_types.h>
+#include <sentinel/collector_config.h>
 
 /* --- Service-wide constants ------------------------------------------ */
 namespace sentinel {
@@ -146,6 +147,7 @@ struct ServiceConfig {
     bool enable_process_monitor = true;
     bool enable_signature_scan  = true;
     bool enable_module_integrity = true;
+    CollectorConfig collector;          /* Forwarding to central collector */
 };
 
 /* -------------------------------------------------------------------
