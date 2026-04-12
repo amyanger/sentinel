@@ -40,15 +40,37 @@ ModuleIntegrity::~ModuleIntegrity() {
 bool ModuleIntegrity::start(const std::string& db_path,
                              DetectionCallback callback) {
     callback_ = std::move(callback);
-    auto db = load_database(db_path);
 
+    /* Step 1: Load hardcoded defaults (intentionally empty — see get_default_hashes). */
+    auto merged = get_default_hashes();
+    const size_t default_count = merged.size();
+
+    /* Step 2: Load file-based hashes. File entries override defaults by module name. */
+    auto file_db = load_database(db_path);
+    const size_t file_count = file_db.size();
+    for (auto& entry : file_db) {
+        merged[entry.first] = std::move(entry.second);
+    }
+
+    std::fprintf(stderr,
+                 "[ModuleIntegrity] Hash DB: %zu default + %zu file = %zu total entries\n",
+                 default_count,
+                 file_count,
+                 merged.size());
+
+    /* Step 3: Store merged result. */
     {
         std::lock_guard<std::mutex> lock(db_mutex_);
-        hash_db_ = std::move(db);
+        hash_db_ = std::move(merged);
     }
 
     active_ = true;
-    return !hash_db_.empty();
+
+    /*
+     * Return true even if the hash DB is empty — compare_disk_vs_memory
+     * is always available and does not require a populated hash database.
+     */
+    return true;
 }
 
 void ModuleIntegrity::stop() {
@@ -377,6 +399,24 @@ std::vector<uint8_t> ModuleIntegrity::read_remote_module(
 #endif
 
     return buffer;
+}
+
+/* -------------------------------------------------------------------
+ * get_default_hashes -- Hardcoded baseline hash entries.
+ *
+ * Returns an empty map intentionally. System DLL hashes (ntdll.dll,
+ * kernel32.dll, etc.) differ across every Windows Update build, so
+ * hardcoding them would produce false positives on any system that
+ * doesn't exactly match the build used to capture the hashes.
+ *
+ * The file-based database (hashes.db) is the correct deployment
+ * mechanism for known-good hashes. Disk-vs-memory comparison via
+ * compare_disk_vs_memory() is always available regardless.
+ * ------------------------------------------------------------------- */
+
+std::unordered_map<std::string, std::string>
+ModuleIntegrity::get_default_hashes() {
+    return {};
 }
 
 /* -------------------------------------------------------------------

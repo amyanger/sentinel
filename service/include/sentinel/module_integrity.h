@@ -131,6 +131,14 @@ private:
     static std::vector<uint8_t> read_remote_module(
         DWORD pid, uintptr_t base_address, size_t size);
 
+    /**
+     * Return hardcoded known-good hashes for critical Windows system DLLs.
+     * Returns empty map — system DLL hashes vary per Windows Update, so
+     * the file-based database (hashes.db) is the correct deployment mechanism.
+     * Disk-vs-memory comparison works without any database.
+     */
+    static std::unordered_map<std::string, std::string> get_default_hashes();
+
     /* --- State --- */
     std::unordered_map<std::string, std::string> hash_db_;
     mutable std::mutex db_mutex_;
