@@ -23,6 +23,8 @@ set(SERVICE_SOURCES
     src/module_integrity.cpp
     src/detection_engine.cpp
     src/api_server.cpp
+    src/collector_wire.cpp
+    src/collector_client.cpp
 )
 
 # Build as a standard Windows executable.
