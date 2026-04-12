@@ -103,20 +103,48 @@ void CollectorClient::wait_for_work() {
 }
 
 void CollectorClient::worker_loop() {
+    int backoff_ms = COLLECTOR_BACKOFF_INITIAL_MS;
+    std::vector<DetectionEvent> pending; /* batch being retried */
+
     while (true) {
-        wait_for_work();
+        if (pending.empty()) {
+            wait_for_work();
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                if (stop_requested_ && queue_.empty()) break;
+            }
+            drain_batch(pending);
+        }
+        if (pending.empty()) continue;
+
+        if (send_batch(pending)) {
+            /* Success (or permanent drop — send_batch returned true). */
+            {
+                std::lock_guard<std::mutex> sl(stats_mutex_);
+                stats_.events_sent += pending.size();
+            }
+            pending.clear();
+            backoff_ms = COLLECTOR_BACKOFF_INITIAL_MS;
+            continue;
+        }
+
+        /* Transient failure — retry with backoff. */
         {
-            std::lock_guard<std::mutex> lock(mutex_);
-            if (stop_requested_ && queue_.empty()) break;
-        }
-        std::vector<DetectionEvent> batch;
-        if (!drain_batch(batch) || batch.empty()) continue;
-        if (send_batch(batch)) {
             std::lock_guard<std::mutex> sl(stats_mutex_);
-            stats_.events_sent += batch.size();
+            stats_.retries_total++;
         }
-        /* On failure, Task 16 will re-enqueue or retry. For now the
-         * batch is dropped -- this is a STUB that Task 16 replaces. */
+
+        /* Check for shutdown during backoff. */
+        std::unique_lock<std::mutex> lock(mutex_);
+        cv_.wait_for(lock, std::chrono::milliseconds(backoff_ms),
+                     [this] { return stop_requested_; });
+        if (stop_requested_) break;
+        lock.unlock();
+
+        backoff_ms *= 2;
+        if (backoff_ms > COLLECTOR_BACKOFF_MAX_MS) {
+            backoff_ms = COLLECTOR_BACKOFF_MAX_MS;
+        }
     }
 }
 
