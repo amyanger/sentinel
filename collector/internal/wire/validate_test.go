@@ -43,6 +43,42 @@ func TestValidate_MissingEventID(t *testing.T) {
 	}
 }
 
+func TestValidate_MissingClientID(t *testing.T) {
+	e := validEvent()
+	e.ClientID = ""
+	err := Validate(e)
+	if err == nil || err.Field != "client_id" {
+		t.Errorf("expected client_id error, got %v", err)
+	}
+}
+
+func TestValidate_MissingTimestamp(t *testing.T) {
+	e := validEvent()
+	e.Timestamp = ""
+	err := Validate(e)
+	if err == nil || err.Field != "timestamp" {
+		t.Errorf("expected timestamp error, got %v", err)
+	}
+}
+
+func TestValidate_MissingDetectionType(t *testing.T) {
+	e := validEvent()
+	e.DetectionType = ""
+	err := Validate(e)
+	if err == nil || err.Field != "detection_type" {
+		t.Errorf("expected detection_type error, got %v", err)
+	}
+}
+
+func TestValidate_MissingSummary(t *testing.T) {
+	e := validEvent()
+	e.Summary = ""
+	err := Validate(e)
+	if err == nil || err.Field != "summary" {
+		t.Errorf("expected summary error, got %v", err)
+	}
+}
+
 func TestValidate_BadSeverity(t *testing.T) {
 	e := validEvent()
 	e.Severity = "fatal"
