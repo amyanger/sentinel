@@ -140,6 +140,19 @@ private:
      */
     static std::vector<Signature> get_default_signatures();
 
+    /**
+     * Merge default and file-based signatures.
+     * File signatures override defaults by matching name; unmatched
+     * defaults are preserved. Logs merged counts to stderr.
+     *
+     * @param defaults   Hardcoded built-in signatures.
+     * @param file_sigs  Signatures loaded from the database file.
+     * @return Merged signature list.
+     */
+    static std::vector<Signature> merge_signatures(
+        std::vector<Signature> defaults,
+        std::vector<Signature> file_sigs);
+
     /* --- State --- */
     std::vector<Signature> signatures_;
     mutable std::mutex     signatures_mutex_;
