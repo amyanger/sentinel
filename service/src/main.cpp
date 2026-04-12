@@ -54,6 +54,10 @@ static std::unique_ptr<sentinel::CollectorClient>   g_collector_client;
 static sentinel::ServiceConfig g_config;
 static std::mutex              g_config_mutex;
 
+/* Set by --inject-test-event on the command line; consumed by run_console()
+ * to submit a synthetic DMA_ANOMALY event at startup for smoke testing. */
+static bool g_inject_test_event = false;
+
 /* -------------------------------------------------------------------
  * report_status -- Update the SCM with our current state.
  *
@@ -388,6 +392,21 @@ static void run_console() {
         return;
     }
 
+    if (g_inject_test_event) {
+        sentinel::DetectionEvent synthetic{};
+        synthetic.source      = sentinel::AlertSource::DMA_DETECT;
+        synthetic.severity    = SENTINEL_SEVERITY_HIGH;
+        synthetic.description = "Synthetic DMA_ANOMALY injected via --inject-test-event";
+        synthetic.process_id  = 0;
+        synthetic.confidence  = 0.90;
+        synthetic.timestamp   = std::chrono::system_clock::now();
+
+        if (g_detection_engine) {
+            g_detection_engine->submit_event(synthetic);
+        }
+        log_to_stderr("Injected synthetic DMA_ANOMALY event at startup.");
+    }
+
     g_running = true;
     log_to_stderr("Sentinel Anticheat running. Press Ctrl+C to stop.");
 
@@ -406,12 +425,13 @@ static void run_console() {
  * Otherwise, register with the SCM as a Windows service.
  * ------------------------------------------------------------------- */
 int main(int argc, char* argv[]) {
-    /* Check for console mode flag. */
+    /* Parse command line flags. */
     bool console_mode = false;
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--console") == 0) {
             console_mode = true;
-            break;
+        } else if (std::strcmp(argv[i], "--inject-test-event") == 0) {
+            g_inject_test_event = true;
         }
     }
 
