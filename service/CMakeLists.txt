@@ -76,3 +76,10 @@ set_target_properties(sentinel_service PROPERTIES
     OUTPUT_NAME "sentinel_service"
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
+
+# --- Unit tests (optional) ---
+option(SENTINEL_SERVICE_TESTS "Build service unit tests" OFF)
+if(SENTINEL_SERVICE_TESTS)
+    enable_testing()
+    add_subdirectory(test)
+endif()
