@@ -9,3 +9,6 @@ sqlite_path = "events.db"
 [clients]
 "acme-07" = "s3cret-key-for-acme"
 "acme-12" = "s3cret-key-for-acme-12"
+
+[admins]
+dashboard-dev = "0000000000000000000000000000000000000000000000000000000000000001"
