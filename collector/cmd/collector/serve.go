@@ -15,6 +15,7 @@ import (
 
 	"sentinel/collector/internal/auth"
 	"sentinel/collector/internal/config"
+	"sentinel/collector/internal/httpapi"
 	"sentinel/collector/internal/ingest"
 	"sentinel/collector/internal/query"
 	"sentinel/collector/internal/store"
@@ -53,14 +54,20 @@ func runServe(args []string) error {
 	}
 	slog.Info("keys loaded", "count", len(cfg.Clients))
 
+	as := auth.NewAdminStore()
+	for name, key := range cfg.Admins {
+		as.Add(name, key)
+	}
+	slog.Info("admin keys loaded", "count", len(cfg.Admins))
+
 	mux := http.NewServeMux()
-	mux.Handle("/v1/events", ingestOrQuery(s, ks))
-	mux.Handle("/v1/events/", query.New(s, ks))
+	mux.Handle("/v1/events", ingestOrQuery(s, ks, as))
+	mux.Handle("/v1/events/", query.New(s, as))
 	mux.HandleFunc("/v1/healthz", handleHealthz)
 
 	srv := &http.Server{
 		Addr:              cfg.Server.Listen,
-		Handler:           mux,
+		Handler:           httpapi.WithCORS(cfg.Server.AllowedOrigins, mux),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -98,10 +105,12 @@ func runServe(args []string) error {
 }
 
 // ingestOrQuery dispatches POST to ingest and GET to query, both at the
-// exact path "/v1/events".
-func ingestOrQuery(s store.Store, ks *auth.KeyStore) http.Handler {
+// exact path "/v1/events". POST authenticates against client keys; GET
+// authenticates against admin keys (the two stores are deliberately separate
+// so a leaked client credential cannot read fleet-wide data).
+func ingestOrQuery(s store.Store, ks *auth.KeyStore, as *auth.AdminStore) http.Handler {
 	ingestH := ingest.New(s, ks)
-	queryH := query.New(s, ks)
+	queryH := query.New(s, as)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			ingestH.ServeHTTP(w, r)
