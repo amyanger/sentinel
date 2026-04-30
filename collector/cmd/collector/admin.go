@@ -16,11 +16,13 @@ import (
 
 func runAdmin(args []string) error {
 	if len(args) < 1 {
-		return errors.New("usage: collector admin add-client <name> --config <path>")
+		return errors.New("usage: collector admin <add-client|add-admin> <name> --config <path>")
 	}
 	switch args[0] {
 	case "add-client":
 		return runAdminAddClient(args[1:])
+	case "add-admin":
+		return runAdminAddAdmin(args[1:])
 	default:
 		return fmt.Errorf("unknown admin subcommand %q", args[0])
 	}
