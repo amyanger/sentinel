@@ -35,6 +35,9 @@
         <div class="nav-item" data-view="logs">
           <span class="nav-item__icon">&#x2263;</span> Logs
         </div>
+        <div class="nav-item" data-view="collector">
+          <span class="nav-item__icon">&#x2728;</span> Collector
+        </div>
       </nav>
 
       <div class="sidebar__footer">
@@ -72,6 +75,7 @@
         <div id="view-alerts"  class="view"></div>
         <div id="view-config"  class="view"></div>
         <div id="view-logs"    class="view"></div>
+        <div id="view-collector" class="view"></div>
       </div>
     </main>
   </div>
@@ -79,9 +83,36 @@
   <!-- Toast container -->
   <div class="toast-container" id="toast-container"></div>
 
+  <!-- Collector settings modal -->
+  <div class="modal" id="collector-settings-modal" hidden>
+    <div class="modal__backdrop" data-close="collector-settings-modal"></div>
+    <div class="modal__panel">
+      <header class="modal__header">
+        <h2>Collector Settings</h2>
+        <button class="btn btn--sm" data-close="collector-settings-modal">&times;</button>
+      </header>
+      <div class="modal__body">
+        <label class="form-row">
+          <span>Collector URL</span>
+          <input type="text" id="collector-url-input" placeholder="http://localhost:18443" />
+        </label>
+        <label class="form-row">
+          <span>Admin API key</span>
+          <input type="password" id="collector-key-input" placeholder="64-hex-char admin key" />
+        </label>
+        <p class="form-help" id="collector-test-result"></p>
+      </div>
+      <footer class="modal__footer">
+        <button class="btn" id="collector-test-btn">Test connection</button>
+        <button class="btn btn--primary" id="collector-save-btn">Save</button>
+      </footer>
+    </div>
+  </div>
+
   <!-- Scripts -->
   <script src="js/utils.js"></script>
   <script src="js/api.js"></script>
+  <script src="js/collector.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
