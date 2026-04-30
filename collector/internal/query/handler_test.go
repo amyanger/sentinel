@@ -21,7 +21,7 @@ func setup(t *testing.T) (*Handler, *store.SQLiteStore) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { s.Close() })
-	ks := auth.NewKeyStore()
+	ks := auth.NewAdminStore()
 	ks.Add("op", "opkey")
 	return New(s, ks), s
 }
@@ -105,5 +105,33 @@ func TestQuery_NoAuth(t *testing.T) {
 	h.ServeHTTP(w, req)
 	if w.Code != http.StatusUnauthorized {
 		t.Errorf("got %d, want 401", w.Code)
+	}
+}
+
+// TestQuery_RejectsClientKeyForGET asserts that the query handler does not
+// accept arbitrary tokens that aren't registered in the AdminStore — including
+// what would be a valid client key. This guards against a regression where the
+// handler is wired back to *KeyStore (or both stores), which would let any
+// client credential read events fleet-wide.
+func TestQuery_RejectsClientKeyForGET(t *testing.T) {
+	s, err := store.OpenSQLite(filepath.Join(t.TempDir(), "db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { s.Close() })
+
+	adminKS := auth.NewAdminStore()
+	// Note: we deliberately register no admin; the request below presents what
+	// would be a valid *client* key, which must NOT pass admin auth.
+
+	h := New(s, adminKS)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/events", nil)
+	req.Header.Set("Authorization", "Bearer client-key-not-an-admin")
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d (body=%s)", rec.Code, rec.Body.String())
 	}
 }

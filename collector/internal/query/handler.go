@@ -17,10 +17,10 @@ import (
 // takes everything under "/v1/events".
 type Handler struct {
 	store store.Store
-	keys  *auth.KeyStore
+	keys  *auth.AdminStore
 }
 
-func New(s store.Store, ks *auth.KeyStore) *Handler {
+func New(s store.Store, ks *auth.AdminStore) *Handler {
 	return &Handler{store: s, keys: ks}
 }
 
