@@ -540,6 +540,100 @@ const App = (() => {
   }
 
   /* ------------------------------------------------------------------ */
+  /*  View: Collector                                                    */
+  /* ------------------------------------------------------------------ */
+
+  async function renderCollector() {
+    var el = document.getElementById('view-collector');
+
+    if (!Collector.isConfigured()) {
+      setContent(el, ''
+        + '<div class="empty-state">'
+        +   '<div class="empty-state__text">Collector is not configured.</div>'
+        +   '<button class="btn btn--primary" id="collector-open-settings">Configure</button>'
+        + '</div>'
+      );
+      document.getElementById('collector-open-settings').addEventListener('click', openCollectorSettings);
+      return;
+    }
+
+    setContent(el, ''
+      + '<div class="collector-toolbar">'
+      +   '<span>Recent events</span>'
+      +   '<div>'
+      +     '<button class="btn btn--sm" id="collector-refresh-btn">Refresh</button>'
+      +     '<button class="btn btn--sm" id="collector-settings-btn">Settings</button>'
+      +   '</div>'
+      + '</div>'
+      + '<table class="event-table">'
+      +   '<thead><tr><th>Time</th><th>Client</th><th>Type</th><th>Severity</th><th>Confidence</th></tr></thead>'
+      +   '<tbody id="collector-events-body"><tr><td colspan="5">Loading…</td></tr></tbody>'
+      + '</table>'
+      + '<pre class="event-detail" id="collector-event-detail" hidden></pre>'
+    );
+    document.getElementById('collector-refresh-btn').addEventListener('click', loadCollectorEvents);
+    document.getElementById('collector-settings-btn').addEventListener('click', openCollectorSettings);
+    loadCollectorEvents();
+  }
+
+  async function loadCollectorEvents() {
+    var tbody = document.getElementById('collector-events-body');
+    if (!tbody) return;
+    try {
+      var result = await Collector.listEvents(50);
+      var events = result.events || [];
+      if (!events.length) {
+        setContent(tbody, '<tr><td colspan="5">No events yet.</td></tr>');
+        return;
+      }
+      var rows = events.map(function(e) {
+        // Every dynamic field is escaped — no exceptions.
+        return '<tr data-event-id="' + Utils.escapeHtml(e.event_id) + '">'
+          + '<td class="mono">' + Utils.escapeHtml(e.timestamp || '') + '</td>'
+          + '<td class="mono">' + Utils.escapeHtml(e.client_id || '') + '</td>'
+          + '<td>' + Utils.escapeHtml(e.detection_type || '') + '</td>'
+          + '<td>' + Utils.escapeHtml(e.severity || '') + '</td>'
+          + '<td>' + Utils.escapeHtml(String(e.confidence)) + '</td>'
+          + '</tr>';
+      }).join('');
+      setContent(tbody, rows);
+      tbody.querySelectorAll('tr[data-event-id]').forEach(function(tr) {
+        tr.addEventListener('click', function() { showCollectorEvent(tr.dataset.eventId); });
+      });
+    } catch (err) {
+      setContent(tbody, '<tr><td colspan="5">Failed to load: ' + Utils.escapeHtml(err.message) + '</td></tr>');
+    }
+  }
+
+  async function showCollectorEvent(id) {
+    var detail = document.getElementById('collector-event-detail');
+    detail.hidden = false;
+    detail.textContent = 'Loading…';
+    try {
+      var e = await Collector.getEvent(id);
+      // textContent is XSS-safe — JSON.stringify produces JSON-safe text.
+      detail.textContent = JSON.stringify(e, null, 2);
+    } catch (err) {
+      detail.textContent = 'Failed to load event: ' + err.message;
+    }
+  }
+
+  function openCollectorSettings() {
+    var modal = document.getElementById('collector-settings-modal');
+    var cfg = Collector.getConfig();
+    document.getElementById('collector-url-input').value = cfg.url;
+    document.getElementById('collector-key-input').value = cfg.key;
+    var result = document.getElementById('collector-test-result');
+    result.textContent = '';
+    result.className = 'form-help';
+    modal.hidden = false;
+  }
+
+  function closeCollectorSettings() {
+    document.getElementById('collector-settings-modal').hidden = true;
+  }
+
+  /* ------------------------------------------------------------------ */
   /*  View dispatcher                                                    */
   /* ------------------------------------------------------------------ */
 
@@ -550,6 +644,7 @@ const App = (() => {
       alerts: renderAlerts,
       config: renderConfig,
       logs: renderLogs,
+      collector: renderCollector,
     };
     var fn = renderers[currentView];
     if (fn) fn();
@@ -609,6 +704,45 @@ const App = (() => {
       refreshSelect.addEventListener('change', function(e) {
         refreshInterval = parseInt(e.target.value, 10);
         startAutoRefresh();
+      });
+    }
+
+    // Collector settings modal: backdrop / close button click closes it
+    document.addEventListener('click', function(ev) {
+      var closeId = ev.target.dataset && ev.target.dataset.close;
+      if (closeId === 'collector-settings-modal') closeCollectorSettings();
+    });
+
+    // Test connection
+    var testBtn = document.getElementById('collector-test-btn');
+    if (testBtn) {
+      testBtn.addEventListener('click', async function() {
+        Collector.setConfig({
+          url: document.getElementById('collector-url-input').value,
+          key: document.getElementById('collector-key-input').value,
+        });
+        var result = document.getElementById('collector-test-result');
+        try {
+          var r = await Collector.ping();
+          result.textContent = 'OK — collector v' + r.version;
+          result.className = 'form-help form-help--ok';
+        } catch (err) {
+          result.textContent = err.message;
+          result.className = 'form-help form-help--err';
+        }
+      });
+    }
+
+    // Save
+    var saveBtn = document.getElementById('collector-save-btn');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', function() {
+        Collector.setConfig({
+          url: document.getElementById('collector-url-input').value,
+          key: document.getElementById('collector-key-input').value,
+        });
+        closeCollectorSettings();
+        if (currentView === 'collector') renderCollector();
       });
     }
 
