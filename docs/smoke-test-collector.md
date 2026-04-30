@@ -243,3 +243,29 @@ Check the service's stderr for `collector_client: retry later, status=0` — tha
 If you see `status=401`, the API key is wrong (see above).
 
 If you see `status=400`, the wire format has drifted between client and collector — this is a bug that needs code changes, not a config fix.
+
+## Step 8 — Optional: load the dashboard against the smoke collector
+
+Useful to eyeball the same data the curl in Step 6 returns.
+
+On macOS:
+
+```bash
+./collector admin add-admin dashboard-dev --config /tmp/collector-smoke.toml
+# Note the printed admin key.
+```
+
+Edit `/tmp/collector-smoke.toml` and add to the `[server]` table:
+
+```toml
+allowed_origins = ["http://localhost:3000"]
+```
+
+Restart the collector. Then:
+
+```bash
+cd /Users/arjunmyanger/Documents/Dev/sentinel/dashboard
+npm run dev
+```
+
+Open Safari → `http://localhost:3000` → **Collector** → **Configure** → paste `http://127.0.0.1:18443` and the admin key. The event injected from the VM in Step 5 should appear in the table.
