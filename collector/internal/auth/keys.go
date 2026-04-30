@@ -42,6 +42,42 @@ func (ks *KeyStore) Verify(apiKey string) (string, bool) {
 	return "", false
 }
 
+// AdminStore maps admin names to their API keys. Thread-safe.
+// Admin keys grant fleet-wide read access on /v1/events[/{id}] and are
+// distinct from client keys to prevent accidental privilege escalation
+// from a leaked endpoint credential.
+type AdminStore struct {
+	mu   sync.RWMutex
+	keys map[string]string // key -> admin name
+}
+
+func NewAdminStore() *AdminStore {
+	return &AdminStore{keys: make(map[string]string)}
+}
+
+// Add registers an API key for an admin name.
+func (as *AdminStore) Add(adminName, apiKey string) {
+	as.mu.Lock()
+	defer as.mu.Unlock()
+	as.keys[apiKey] = adminName
+}
+
+// Verify checks whether apiKey matches any registered admin key.
+// Returns the associated admin name and true on success.
+func (as *AdminStore) Verify(apiKey string) (string, bool) {
+	if apiKey == "" {
+		return "", false
+	}
+	as.mu.RLock()
+	defer as.mu.RUnlock()
+	for storedKey, name := range as.keys {
+		if subtle.ConstantTimeCompare([]byte(storedKey), []byte(apiKey)) == 1 {
+			return name, true
+		}
+	}
+	return "", false
+}
+
 // ParseBearer extracts the token from an "Authorization: Bearer <token>"
 // header value. Returns (token, true) on success. Scheme match is
 // case-insensitive.
