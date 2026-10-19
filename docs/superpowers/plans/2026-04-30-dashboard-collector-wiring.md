@@ -95,7 +95,7 @@ If `os` and `path/filepath` aren't already imported in this test file, add them.
 - [ ] **Step 2: Run test to verify it fails**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 go test ./internal/config/ -run TestLoad_ParsesAdmins -v
 ```
 
@@ -946,7 +946,7 @@ const Collector = (() => {
 Add a temporary `<script src="js/collector.js"></script>` line right before `<script src="js/api.js">` in `index.html` (you'll do this properly in Task 8 but a quick sanity check now keeps wiring honest).
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/dashboard
+cd ~/Documents/Dev/sentinel/dashboard
 npm run dev
 ```
 
@@ -1341,7 +1341,7 @@ document.getElementById('collector-save-btn').addEventListener('click', () => {
 Terminal 1:
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 go build ./cmd/collector
 
 cat > /tmp/dash-dev.toml <<'EOF'
@@ -1386,7 +1386,7 @@ curl -X POST -H "Authorization: Bearer <CLIENT-KEY>" \
 Terminal 3:
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/dashboard
+cd ~/Documents/Dev/sentinel/dashboard
 npm run dev
 ```
 
@@ -1502,7 +1502,7 @@ allowed_origins = ["http://localhost:3000"]
 Restart the collector. Then:
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/dashboard
+cd ~/Documents/Dev/sentinel/dashboard
 npm run dev
 ```
 

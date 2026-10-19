@@ -8,7 +8,7 @@
 
 **Tech Stack:** Go (collector, `modernc.org/sqlite` pure-Go driver, `log/slog`, `net/http`, `crypto/tls`), C++17 (client-side module in existing service, WinHTTP for HTTPS, hand-rolled JSON serializer, GoogleTest for unit tests), SQLite (collector storage), Windows Credential Store (client-side API key storage).
 
-**Working directory:** `/Users/arjunmyanger/Documents/Dev/sentinel/`
+**Working directory:** `~/Documents/Dev/sentinel/`
 
 **Spec reference:** `docs/superpowers/specs/2026-04-12-detection-collector-design.md`
 
@@ -26,7 +26,7 @@
 - [ ] **Step 1: Create directory structure and initialize Go module**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 mkdir -p collector/cmd/collector
 mkdir -p collector/internal/{ingest,query,store,auth,config,wire}
 mkdir -p collector/schema
@@ -64,7 +64,7 @@ func main() {
 - [ ] **Step 3: Build and verify it runs**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 go build ./cmd/collector
 ./collector version
 ```
@@ -98,7 +98,7 @@ full design.
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 git add collector/
 git commit -m "collector: scaffold Go module and version subcommand"
 ```
@@ -189,7 +189,7 @@ func TestBatch_Unmarshal(t *testing.T) {
 - [ ] **Step 2: Run test to verify it fails**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 go test ./internal/wire/
 ```
 
@@ -240,7 +240,7 @@ type Batch struct {
 - [ ] **Step 4: Run test to verify it passes**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 go test ./internal/wire/ -v
 ```
 
@@ -249,7 +249,7 @@ Expected: `PASS` for both tests.
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 git add collector/internal/wire/
 git commit -m "collector: add wire format types and JSON round-trip test"
 ```
@@ -343,7 +343,7 @@ func TestValidate_ConfidenceOutOfRange(t *testing.T) {
 - [ ] **Step 2: Run test to verify it fails**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 go test ./internal/wire/
 ```
 
@@ -415,7 +415,7 @@ func Validate(e Event) *ValidationError {
 - [ ] **Step 4: Run test to verify it passes**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 go test ./internal/wire/ -v
 ```
 
@@ -424,7 +424,7 @@ Expected: all tests PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 git add collector/internal/wire/
 git commit -m "collector: add wire format validation"
 ```
@@ -443,7 +443,7 @@ git commit -m "collector: add wire format validation"
 - [ ] **Step 1: Add the SQLite driver**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 go get modernc.org/sqlite
 go mod tidy
 ```
@@ -592,7 +592,7 @@ func TestSQLite_ListRecent(t *testing.T) {
 - [ ] **Step 4: Run test to verify it fails**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 go test ./internal/store/
 ```
 
@@ -791,7 +791,7 @@ func (s *SQLiteStore) ListRecent(ctx context.Context, limit int) ([]wire.Event, 
 - [ ] **Step 7: Run tests to verify they pass**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 go test ./internal/store/ -v
 ```
 
@@ -800,7 +800,7 @@ Expected: `TestSQLite_InsertAndGet`, `TestSQLite_Idempotency`, `TestSQLite_ListR
 - [ ] **Step 8: Commit**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 git add collector/
 git commit -m "collector: add SQLite store with insert/get/list and idempotency"
 ```
@@ -864,7 +864,7 @@ func TestParseBearer(t *testing.T) {
 - [ ] **Step 2: Run test to verify it fails**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 go test ./internal/auth/
 ```
 
@@ -941,7 +941,7 @@ func ParseBearer(header string) (string, bool) {
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 go test ./internal/auth/ -v
 ```
 
@@ -950,7 +950,7 @@ Expected: both tests PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 git add collector/internal/auth/
 git commit -m "collector: add API key store with constant-time verify"
 ```
@@ -1142,7 +1142,7 @@ var _ = time.Second
 - [ ] **Step 2: Run test to verify it fails**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 go test ./internal/ingest/
 ```
 
@@ -1268,7 +1268,7 @@ func writeError(w http.ResponseWriter, code int, msg string) {
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 go test ./internal/ingest/ -v
 ```
 
@@ -1277,7 +1277,7 @@ Expected: all ingest tests PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 git add collector/internal/ingest/
 git commit -m "collector: add ingest handler with validation and idempotency"
 ```
@@ -1409,7 +1409,7 @@ func TestQuery_NoAuth(t *testing.T) {
 - [ ] **Step 2: Run test to verify it fails**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 go test ./internal/query/
 ```
 
@@ -1534,7 +1534,7 @@ var _ = wire.Event{}
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 go test ./internal/query/ -v
 ```
 
@@ -1543,7 +1543,7 @@ Expected: all query tests PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 git add collector/internal/query/
 git commit -m "collector: add query handler for list and get-by-id"
 ```
@@ -1560,7 +1560,7 @@ git commit -m "collector: add query handler for list and get-by-id"
 - [ ] **Step 1: Add the TOML parser**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 go get github.com/BurntSushi/toml
 go mod tidy
 ```
@@ -1628,7 +1628,7 @@ func TestValidate_RequiresListen(t *testing.T) {
 - [ ] **Step 3: Run test to verify it fails**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 go test ./internal/config/
 ```
 
@@ -1692,7 +1692,7 @@ func (c *Config) Validate() error {
 - [ ] **Step 5: Run tests to verify they pass**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 go test ./internal/config/ -v
 ```
 
@@ -1701,7 +1701,7 @@ Expected: all three tests PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 git add collector/
 git commit -m "collector: add TOML config loader"
 ```
@@ -1899,7 +1899,7 @@ func runAdmin(args []string) error {
 - [ ] **Step 3: Build and verify**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 go build ./cmd/collector
 ./collector version
 ```
@@ -1924,7 +1924,7 @@ sqlite_path = "/tmp/collector-dev.db"
 Run in one terminal:
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 ./collector serve --config /tmp/collector-dev.toml
 ```
 
@@ -1941,7 +1941,7 @@ Stop the collector with Ctrl+C. Expected: it logs "shutting down" and exits clea
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 git add collector/cmd/collector/
 git commit -m "collector: wire up serve subcommand with TLS, routes, graceful shutdown"
 ```
@@ -2067,7 +2067,7 @@ func writeConfig(path string, cfg *config.Config) error {
 - [ ] **Step 3: Build and test by hand**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 go build ./cmd/collector
 
 # Create a fresh config
@@ -2111,7 +2111,7 @@ Expected exit 1 with `admin: client "trading-desk-01" already exists`.
 - [ ] **Step 4: Commit**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 git add collector/cmd/collector/
 git commit -m "collector: add admin add-client subcommand"
 ```
@@ -2337,7 +2337,7 @@ func TestE2E_Fault_BadSchema(t *testing.T) {
 - [ ] **Step 2: Run the integration test**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 go test ./e2e/ -v
 ```
 
@@ -2346,7 +2346,7 @@ Expected: `TestE2E_FullRoundTrip`, `TestE2E_Idempotency`, `TestE2E_Fault_BadAuth
 - [ ] **Step 3: Run the full Go test suite to verify nothing broke**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 go test ./...
 ```
 
@@ -2355,7 +2355,7 @@ Expected: all packages PASS.
 - [ ] **Step 4: Commit**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 git add collector/e2e/
 git commit -m "collector: add e2e tests covering round-trip, idempotency, and faults"
 ```
@@ -2479,7 +2479,7 @@ And add, near the top with the other includes inside the `sentinel` namespace bl
 - [ ] **Step 3: macOS syntax check**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 clang -std=c++17 -fsyntax-only -Iservice/include -Ishared/include -x c++ service/include/sentinel/collector_config.h
 ```
 
@@ -2488,7 +2488,7 @@ Expected: no output (success). The existing `#ifdef _WIN32` guards in `service.h
 - [ ] **Step 4: Commit**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 git add service/include/sentinel/collector_config.h service/include/sentinel/service.h
 git commit -m "service: add CollectorConfig struct and compile-time defaults"
 ```
@@ -2809,7 +2809,7 @@ set(SERVICE_SOURCES
 - [ ] **Step 4: macOS syntax check**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 clang -std=c++17 -fsyntax-only -Iservice/include -Ishared/include -x c++ service/src/collector_wire.cpp
 ```
 
@@ -2818,7 +2818,7 @@ Expected: no output (success).
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 git add service/include/sentinel/collector_wire.h service/src/collector_wire.cpp service/CMakeLists.txt
 git commit -m "service: add collector wire format serializer (JSON, UUIDv7)"
 ```
@@ -3086,7 +3086,7 @@ bool CollectorClient::send_batch(const std::vector<DetectionEvent>& events) {
 - [ ] **Step 3: macOS syntax check**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 clang -std=c++17 -fsyntax-only -Iservice/include -Ishared/include -x c++ service/src/collector_client.cpp
 ```
 
@@ -3095,7 +3095,7 @@ Expected: no output (success).
 - [ ] **Step 4: Commit**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 git add service/include/sentinel/collector_client.h service/src/collector_client.cpp
 git commit -m "service: add CollectorClient queue, lifecycle, and worker stub"
 ```
@@ -3405,7 +3405,7 @@ endif()
 - [ ] **Step 5: macOS syntax check**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 clang -std=c++17 -fsyntax-only -Iservice/include -Ishared/include -x c++ service/src/collector_http_win.cpp
 clang -std=c++17 -fsyntax-only -Iservice/include -Ishared/include -x c++ service/src/collector_client.cpp
 ```
@@ -3415,7 +3415,7 @@ Expected: both files parse cleanly (the `#else` stub path is used on macOS).
 - [ ] **Step 6: Commit**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 git add service/include/sentinel/collector_http.h service/src/collector_http_win.cpp service/src/collector_client.cpp service/CMakeLists.txt
 git commit -m "service: implement WinHTTP POST with strict TLS and result classification"
 ```
@@ -3487,7 +3487,7 @@ in-place. This is simpler than re-enqueuing and preserves batch order.
 - [ ] **Step 2: macOS syntax check**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 clang -std=c++17 -fsyntax-only -Iservice/include -Ishared/include -x c++ service/src/collector_client.cpp
 ```
 
@@ -3496,7 +3496,7 @@ Expected: no output.
 - [ ] **Step 3: Commit**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 git add service/src/collector_client.cpp
 git commit -m "service: add retry/backoff state machine to collector sender"
 ```
@@ -3653,7 +3653,7 @@ set(SERVICE_SOURCES
 - [ ] **Step 4: macOS syntax check**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 clang -std=c++17 -fsyntax-only -Iservice/include -Ishared/include -x c++ service/src/credential_store_win.cpp
 ```
 
@@ -3662,7 +3662,7 @@ Expected: no output.
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 git add service/include/sentinel/credential_store.h service/src/credential_store_win.cpp service/CMakeLists.txt
 git commit -m "service: add Windows credential store wrapper for collector API key"
 ```
@@ -3683,7 +3683,7 @@ and also calls `collector_client.enqueue(event)`.
 - [ ] **Step 1: Read main.cpp to find the callback setup**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 grep -n "AlertCallback\|DetectionEngine\|--console\|argv" service/src/main.cpp | head -40
 ```
 
@@ -3798,7 +3798,7 @@ g_collector_client.stop();
 - [ ] **Step 6: macOS syntax check**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 clang -std=c++17 -fsyntax-only -Iservice/include -Ishared/include -x c++ service/src/main.cpp
 ```
 
@@ -3807,7 +3807,7 @@ Expected: no output.
 - [ ] **Step 7: Commit**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 git add service/src/main.cpp
 git commit -m "service: wire CollectorClient into main and alert callback"
 ```
@@ -3867,7 +3867,7 @@ exercises the whole chain end-to-end.
 - [ ] **Step 3: macOS syntax check**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 clang -std=c++17 -fsyntax-only -Iservice/include -Ishared/include -x c++ service/src/main.cpp
 ```
 
@@ -3876,7 +3876,7 @@ Expected: no output.
 - [ ] **Step 4: Commit**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 git add service/src/main.cpp
 git commit -m "service: add --inject-test-event flag for smoke testing"
 ```
@@ -3946,7 +3946,7 @@ works — that's Task 22 (end-to-end smoke test).
 If you needed to adjust any source files to get the Windows build working:
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 git add <whatever changed>
 git commit -m "service: fixes to build collector pieces under MSVC"
 ```
@@ -4234,7 +4234,7 @@ manually and point `FetchContent_Declare` at the local path.
 - [ ] **Step 6: Commit**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 git add service/test/ service/CMakeLists.txt
 git commit -m "service: add GoogleTest unit tests for collector queue and wire format"
 ```
@@ -4250,7 +4250,7 @@ This is the test that proves the whole chain works. No code; it's a runbook.
 - [ ] **Step 1: Generate a client key and start the collector on macOS**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 
 # Initial config
 cat > /tmp/collector-smoke.toml <<'EOF'
@@ -4371,7 +4371,7 @@ for future runs.
 Then:
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel
+cd ~/Documents/Dev/sentinel
 git add docs/smoke-test-collector.md
 git commit -m "docs: add collector smoke test runbook"
 ```
@@ -4399,7 +4399,7 @@ For any item that fails, open a fresh task, fix it, and re-run the check.
 - [ ] **Step 1: Run the full Go test suite**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 go test ./...
 ```
 
@@ -4408,7 +4408,7 @@ Expected: all PASS, no SKIP, no FAIL.
 - [ ] **Step 2: Check dashboard is unaffected**
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/dashboard
+cd ~/Documents/Dev/sentinel/dashboard
 npm run dev
 ```
 

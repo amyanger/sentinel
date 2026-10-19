@@ -13,7 +13,7 @@
 ## Step 1 — Start the collector on macOS
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/collector
+cd ~/Documents/Dev/sentinel/collector
 go build ./cmd/collector
 
 cat > /tmp/collector-smoke.toml <<'EOF'
@@ -195,7 +195,7 @@ On macOS:
 ```bash
 # Stop the collector (Ctrl+C in its terminal)
 rm -f /tmp/collector-smoke.toml /tmp/collector-smoke.db /tmp/collector-smoke.db-*
-rm -f /Users/arjunmyanger/Documents/Dev/sentinel/collector/collector
+rm -f ~/Documents/Dev/sentinel/collector/collector
 ```
 
 On Windows:
@@ -264,7 +264,7 @@ allowed_origins = ["http://localhost:3000"]
 Restart the collector. Then:
 
 ```bash
-cd /Users/arjunmyanger/Documents/Dev/sentinel/dashboard
+cd ~/Documents/Dev/sentinel/dashboard
 npm run dev
 ```
 
